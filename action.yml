@@ -1,0 +1,38 @@
+name: Setup Node and pnpm
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .node-version
+        registry-url: 'https://registry.npmjs.org'
+        # see pnpm cache setting below
+
+    - name: Get pnpm store directory
+      id: store
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+    - name: Save and restore pnpm cache on main
+      uses: actions/cache@v4
+      if: ${{ github.ref_name == 'main' }}
+      with:
+        path: ${{ steps.store.outputs.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    - name: Restore pnpm cache on PR
+      uses: actions/cache/restore@v4
+      if: ${{ github.ref_name != 'main' }}
+      with:
+        path: ${{ steps.store.outputs.STORE_PATH }}
+        key: |
+          ${{ runner.os }}-pnpm-store-
+
+    - run: pnpm install --frozen-lockfile --ignore-scripts
+      shell: bash
