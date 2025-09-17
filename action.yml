@@ -15,9 +15,9 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: pnpm/action-setup@v4
+    - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4
 
-    - uses: actions/setup-node@v5
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
       with:
         node-version-file: .node-version
         registry-url: ${{ inputs.registry-url }}
@@ -32,7 +32,7 @@ runs:
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
 
     - name: Save and restore pnpm cache on main
-      uses: actions/cache@v4
+      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4
       if: ${{ github.ref_name == 'main' }}
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
@@ -41,7 +41,7 @@ runs:
           ${{ runner.os }}-pnpm-store-
 
     - name: Restore pnpm cache on PR
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4
       if: ${{ github.ref_name != 'main' }}
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
