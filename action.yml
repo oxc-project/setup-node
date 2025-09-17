@@ -1,5 +1,17 @@
 name: Setup Node and pnpm
 
+inputs:
+  registry-url:
+    default: 'https://registry.npmjs.org'
+    required: false
+    type: string
+    description: 'Optional registry to set up for auth. Will set the registry in a project level .npmrc and .yarnrc file, and set up auth to read in from env.NODE_AUTH_TOKEN.'
+
+  scope:
+    required: false
+    type: string
+    description: 'Optional scope for authenticating against scoped registries. Will fall back to the repository owner when using the GitHub Packages registry (https://npm.pkg.github.com/).'
+
 runs:
   using: composite
   steps:
@@ -8,7 +20,8 @@ runs:
     - uses: actions/setup-node@v5
       with:
         node-version-file: .node-version
-        registry-url: 'https://registry.npmjs.org'
+        registry-url: ${{ inputs.registry-url }}
+        scope: ${{ inputs.scope }}
         # see pnpm cache setting below
 
     - name: Get pnpm store directory
