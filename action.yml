@@ -22,6 +22,7 @@ runs:
         node-version-file: .node-version
         registry-url: ${{ inputs.registry-url }}
         scope: ${{ inputs.scope }}
+        package-manager-cache: false
         # see pnpm cache setting below
 
     - name: Get pnpm store directory
