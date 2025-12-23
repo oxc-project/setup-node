@@ -1,4 +1,5 @@
 name: Setup Node and pnpm
+description: Setup Node.js and pnpm with caching
 
 inputs:
   registry-url:
@@ -12,6 +13,14 @@ inputs:
     type: string
     description: 'Optional scope for authenticating against scoped registries. Will fall back to the repository owner when using the GitHub Packages registry (https://npm.pkg.github.com/).'
 
+  architecture:
+    required: false
+    description: 'Optional architecture for Node.js (e.g., x64, arm64). If not specified, defaults to the runner architecture.'
+
+  cpu:
+    required: false
+    description: 'Optional CPU architecture for pnpm supportedArchitectures configuration (e.g., x64, arm64).'
+
 runs:
   using: composite
   steps:
@@ -20,6 +29,7 @@ runs:
     - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
       with:
         node-version-file: .node-version
+        architecture: ${{ inputs.architecture }}
         registry-url: ${{ inputs.registry-url }}
         scope: ${{ inputs.scope }}
         package-manager-cache: false
@@ -47,6 +57,13 @@ runs:
         path: ${{ steps.store.outputs.STORE_PATH }}
         key: |
           ${{ runner.os }}-pnpm-store-
+
+    - name: Set CPU architecture for pnpm
+      if: ${{ inputs.cpu }}
+      shell: bash
+      run: node -e 'console.log(`\nsupportedArchitectures:\n  cpu:\n    - ${process.env.CPU_ARCH}`)' >> pnpm-workspace.yaml
+      env:
+        CPU_ARCH: ${{ inputs.cpu }}
 
     - run: pnpm install --frozen-lockfile --ignore-scripts
       shell: bash
