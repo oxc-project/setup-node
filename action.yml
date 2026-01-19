@@ -42,7 +42,7 @@ runs:
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
 
     - name: Save and restore pnpm cache on main
-      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
       if: ${{ github.ref_name == 'main' }}
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
@@ -51,7 +51,7 @@ runs:
           ${{ runner.os }}-pnpm-store-
 
     - name: Restore pnpm cache on PR
-      uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
       if: ${{ github.ref_name != 'main' }}
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
