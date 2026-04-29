@@ -21,14 +21,11 @@ inputs:
     required: false
     description: 'Optional CPU architecture for pnpm supportedArchitectures configuration (e.g., x64, arm64).'
 
-  install-node:
-    required: false
-    default: 'auto'
-    description: 'Whether to install Node.js via actions/setup-node. "auto" (default) skips installation on Alpine Linux, where the GitHub toolcache only ships glibc Node binaries that cannot run on musl, and uses the container/system Node instead. "true" forces install. "false" skips.'
-
 runs:
   using: composite
   steps:
+    # actions/setup-node only ships glibc Node binaries; on Alpine those can't
+    # run, so use the container's musl Node instead.
     - name: Detect Alpine Linux
       id: detect
       if: runner.os == 'Linux'
@@ -41,7 +38,7 @@ runs:
     - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
 
     - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-      if: ${{ inputs.install-node == 'true' || (inputs.install-node == 'auto' && steps.detect.outputs.is-alpine != 'true') }}
+      if: steps.detect.outputs.is-alpine != 'true'
       with:
         node-version-file: .node-version
         architecture: ${{ inputs.architecture }}
