@@ -53,9 +53,14 @@ runs:
       run: |
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
 
+    # actions/cache (Node) intermittently hard-crashes on Windows runners with
+    # STATUS_STACK_BUFFER_OVERRUN (exit code 0xC0000409), dying with no error
+    # message and failing the job. Caching is a non-essential optimization, so
+    # never let it fail the build. See actions/cache#1754.
     - name: Save and restore pnpm cache on main
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       if: ${{ github.ref_name == 'main' }}
+      continue-on-error: true
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
         key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
@@ -65,6 +70,7 @@ runs:
     - name: Restore pnpm cache on PR
       uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       if: ${{ github.ref_name != 'main' }}
+      continue-on-error: true
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
         key: |
