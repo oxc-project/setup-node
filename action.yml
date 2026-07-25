@@ -58,7 +58,7 @@ runs:
     # message and failing the job. Caching is a non-essential optimization, so
     # never let it fail the build. See actions/cache#1754.
     - name: Save and restore pnpm cache on main
-      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       if: ${{ github.ref_name == 'main' }}
       continue-on-error: true
       with:
@@ -68,7 +68,7 @@ runs:
           ${{ runner.os }}-pnpm-store-
 
     - name: Restore pnpm cache on PR
-      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       if: ${{ github.ref_name != 'main' }}
       continue-on-error: true
       with:
