@@ -57,24 +57,24 @@ runs:
     # STATUS_STACK_BUFFER_OVERRUN (exit code 0xC0000409), dying with no error
     # message and failing the job. Caching is a non-essential optimization, so
     # never let it fail the build. See actions/cache#1754.
-    - name: Save and restore pnpm cache on main
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      if: ${{ github.ref_name == 'main' }}
+    #
+    # main restores on an exact lockfile match only. Falling back to the
+    # ${{ runner.os }}-pnpm-store- prefix here would make each save the union of
+    # the old store and the new install, so the store would accumulate every
+    # package version ever built and grow without bound. PRs never save, so
+    # they do take the prefix fallback and reuse whatever main last stored.
+    - name: Restore pnpm cache
+      id: cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       continue-on-error: true
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
         key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-pnpm-store-
-
-    - name: Restore pnpm cache on PR
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      if: ${{ github.ref_name != 'main' }}
-      continue-on-error: true
-      with:
-        path: ${{ steps.store.outputs.STORE_PATH }}
-        key: |
-          ${{ runner.os }}-pnpm-store-
+        # Written as `!= 'main' && <prefix> || ''` rather than the more natural
+        # `== 'main' && '' || <prefix>`: in a GitHub expression `a && b || c`
+        # falls through to c whenever b is falsy, and '' is falsy, so the
+        # natural spelling would hand main the prefix in both branches.
+        restore-keys: ${{ github.ref_name != 'main' && format('{0}-pnpm-store-', runner.os) || '' }}
 
     - name: Set CPU architecture for pnpm
       if: ${{ inputs.cpu }}
@@ -85,3 +85,22 @@ runs:
 
     - run: pnpm install --frozen-lockfile --ignore-scripts
       shell: bash
+
+    # Saved here rather than as a post-job step so the store survives a later
+    # failure in the calling job.
+    #
+    # `ref_name == 'main'` is also true under pull_request_target, which runs
+    # with GITHUB_REF pointing at the default branch. That is not a poisoning
+    # vector: only push, workflow_dispatch, repository_dispatch, delete,
+    # registry_package, page_build and schedule may create or overwrite caches
+    # in the default branch's scope, so a pull_request_target run's save is
+    # rejected by the cache service (and continue-on-error keeps that from
+    # failing the job). Fork pull_request runs can only write their own merge
+    # ref scope, which no other PR and no branch can restore.
+    - name: Save pnpm cache on main
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: ${{ github.ref_name == 'main' && steps.cache.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      with:
+        path: ${{ steps.store.outputs.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
