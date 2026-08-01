@@ -59,22 +59,29 @@ runs:
     # never let it fail the build. See actions/cache#1754.
     #
     # main restores on an exact lockfile match only. Falling back to the
-    # ${{ runner.os }}-pnpm-store- prefix here would make each save the union of
-    # the old store and the new install, so the store would accumulate every
+    # <os>-<arch>-<cpu>-pnpm-store- prefix here would make each save the union
+    # of the old store and the new install, so the store would accumulate every
     # package version ever built and grow without bound. PRs never save, so
     # they do take the prefix fallback and reuse whatever main last stored.
+    #
+    # The key covers runner.arch and inputs.cpu as well as runner.os because
+    # the store's contents are architecture-specific: platform-specific
+    # optional dependencies differ per architecture, and inputs.cpu overrides
+    # which ones pnpm fetches. Keying on runner.os alone lets an x64 and an
+    # arm64 job share one entry, so whichever saves first wins and the other
+    # re-downloads its own packages on every run.
     - name: Restore pnpm cache
       id: cache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       continue-on-error: true
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-${{ inputs.cpu || 'default' }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
         # Written as `!= 'main' && <prefix> || ''` rather than the more natural
         # `== 'main' && '' || <prefix>`: in a GitHub expression `a && b || c`
         # falls through to c whenever b is falsy, and '' is falsy, so the
         # natural spelling would hand main the prefix in both branches.
-        restore-keys: ${{ github.ref_name != 'main' && format('{0}-pnpm-store-', runner.os) || '' }}
+        restore-keys: ${{ github.ref_name != 'main' && format('{0}-{1}-{2}-pnpm-store-', runner.os, runner.arch, inputs.cpu || 'default') || '' }}
 
     - name: Set CPU architecture for pnpm
       if: ${{ inputs.cpu }}
@@ -103,4 +110,4 @@ runs:
       continue-on-error: true
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-${{ inputs.cpu || 'default' }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
