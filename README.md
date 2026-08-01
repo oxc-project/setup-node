@@ -1,12 +1,14 @@
 # Setup Node and pnpm
 
 * Reads node version file (.node-version) from project root
-* Only saves pnpm cache on the main branch, and only when the current lockfile
-  has no cache entry yet
-* main restores on an exact lockfile match only, so a save is never the union
-  of an older store and the new install — the store stays the size of the
-  current lockfile instead of accumulating every package version ever built
-* Restores pnpm cache on PR, falling back to the newest store main saved
+* Only saves pnpm cache on the default branch, and only when the current
+  lockfile has no cache entry yet
+* The default branch restores on an exact lockfile match only, so a save is
+  never the union of an older store and the new install — the store stays the
+  size of the current lockfile instead of accumulating every package version
+  ever built
+* Restores pnpm cache on PR, falling back to the newest store the default
+  branch saved
 * Skips `actions/setup-node` on Alpine Linux (which only ships glibc
   binaries) and uses the container's musl Node instead.
 

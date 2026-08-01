@@ -53,16 +53,29 @@ runs:
       run: |
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
 
+    # Which branch may write the cache. Resolved once here rather than compared
+    # against a hardcoded 'main', so repos on master/trunk get a cache too.
+    #
+    # github.event.repository is absent from a few event payloads; fall back to
+    # 'main' rather than to an empty string, which would match no branch and
+    # silently disable saving everywhere.
+    - name: Resolve default branch
+      id: default_branch
+      shell: bash
+      run: echo "name=${DEFAULT_BRANCH:-main}" >> "$GITHUB_OUTPUT"
+      env:
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+
     # actions/cache (Node) intermittently hard-crashes on Windows runners with
     # STATUS_STACK_BUFFER_OVERRUN (exit code 0xC0000409), dying with no error
     # message and failing the job. Caching is a non-essential optimization, so
     # never let it fail the build. See actions/cache#1754.
     #
-    # main restores on an exact lockfile match only. Falling back to the
-    # <os>-<arch>-<cpu>-pnpm-store- prefix here would make each save the union
-    # of the old store and the new install, so the store would accumulate every
-    # package version ever built and grow without bound. PRs never save, so
-    # they do take the prefix fallback and reuse whatever main last stored.
+    # The default branch restores on an exact lockfile match only. Falling back
+    # to the <os>-<arch>-<cpu>-pnpm-store- prefix here would make each save the
+    # union of the old store and the new install, so the store would accumulate
+    # every package version ever built and grow without bound. PRs never save,
+    # so they do take the prefix fallback and reuse the newest store saved.
     #
     # The key covers runner.arch and inputs.cpu as well as runner.os because
     # the store's contents are architecture-specific: platform-specific
@@ -77,11 +90,12 @@ runs:
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
         key: ${{ runner.os }}-${{ runner.arch }}-${{ inputs.cpu || 'default' }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-        # Written as `!= 'main' && <prefix> || ''` rather than the more natural
-        # `== 'main' && '' || <prefix>`: in a GitHub expression `a && b || c`
-        # falls through to c whenever b is falsy, and '' is falsy, so the
-        # natural spelling would hand main the prefix in both branches.
-        restore-keys: ${{ github.ref_name != 'main' && format('{0}-{1}-{2}-pnpm-store-', runner.os, runner.arch, inputs.cpu || 'default') || '' }}
+        # Written as `!= <default> && <prefix> || ''` rather than the more
+        # natural `== <default> && '' || <prefix>`: in a GitHub expression
+        # `a && b || c` falls through to c whenever b is falsy, and '' is
+        # falsy, so the natural spelling would hand the default branch the
+        # prefix in both branches.
+        restore-keys: ${{ github.ref_name != steps.default_branch.outputs.name && format('{0}-{1}-{2}-pnpm-store-', runner.os, runner.arch, inputs.cpu || 'default') || '' }}
 
     - name: Set CPU architecture for pnpm
       if: ${{ inputs.cpu }}
@@ -96,17 +110,18 @@ runs:
     # Saved here rather than as a post-job step so the store survives a later
     # failure in the calling job.
     #
-    # `ref_name == 'main'` is also true under pull_request_target, which runs
-    # with GITHUB_REF pointing at the base branch rather than the PR head, so
-    # its cache writes land in the default branch's scope. A caller that checks
-    # out the PR head under pull_request_target would then install from a fork's
-    # lockfile and publish that store as main's — which every later run picks up
-    # via the prefix fallback. Hence the event guard below. Fork pull_request
-    # runs need no guard: they can only write their own merge ref scope, which
-    # no other PR and no branch can restore.
-    - name: Save pnpm cache on main
+    # The default-branch check below is also satisfied under
+    # pull_request_target, which runs with GITHUB_REF pointing at the base
+    # branch rather than the PR head, so its cache writes land in the default
+    # branch's scope. A caller that checks out the PR head under
+    # pull_request_target would then install from a fork's lockfile and publish
+    # that store as the default branch's — which every later run picks up via
+    # the prefix fallback. Hence the event guard below. Fork pull_request runs
+    # need no guard: they can only write their own merge ref scope, which no
+    # other PR and no branch can restore.
+    - name: Save pnpm cache on the default branch
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      if: ${{ github.ref_name == 'main' && github.event_name != 'pull_request_target' && steps.cache.outputs.cache-hit != 'true' }}
+      if: ${{ github.ref_name == steps.default_branch.outputs.name && github.event_name != 'pull_request_target' && steps.cache.outputs.cache-hit != 'true' }}
       continue-on-error: true
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
