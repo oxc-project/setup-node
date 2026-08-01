@@ -90,16 +90,16 @@ runs:
     # failure in the calling job.
     #
     # `ref_name == 'main'` is also true under pull_request_target, which runs
-    # with GITHUB_REF pointing at the default branch. That is not a poisoning
-    # vector: only push, workflow_dispatch, repository_dispatch, delete,
-    # registry_package, page_build and schedule may create or overwrite caches
-    # in the default branch's scope, so a pull_request_target run's save is
-    # rejected by the cache service (and continue-on-error keeps that from
-    # failing the job). Fork pull_request runs can only write their own merge
-    # ref scope, which no other PR and no branch can restore.
+    # with GITHUB_REF pointing at the base branch rather than the PR head, so
+    # its cache writes land in the default branch's scope. A caller that checks
+    # out the PR head under pull_request_target would then install from a fork's
+    # lockfile and publish that store as main's — which every later run picks up
+    # via the prefix fallback. Hence the event guard below. Fork pull_request
+    # runs need no guard: they can only write their own merge ref scope, which
+    # no other PR and no branch can restore.
     - name: Save pnpm cache on main
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      if: ${{ github.ref_name == 'main' && steps.cache.outputs.cache-hit != 'true' }}
+      if: ${{ github.ref_name == 'main' && github.event_name != 'pull_request_target' && steps.cache.outputs.cache-hit != 'true' }}
       continue-on-error: true
       with:
         path: ${{ steps.store.outputs.STORE_PATH }}
