@@ -21,6 +21,11 @@ inputs:
     required: false
     description: 'Optional CPU architecture for pnpm supportedArchitectures configuration (e.g., x64, arm64).'
 
+  working-directory:
+    default: '.'
+    required: false
+    description: 'Directory to install dependencies in, relative to the repository root. The pnpm store and its cache are resolved from here, so set it to the directory the build actually runs in when that is not the checkout, such as a Dev Drive copy.'
+
 runs:
   using: composite
   steps:
@@ -49,9 +54,13 @@ runs:
     # An older system Node otherwise requires the larger standalone pnpm.
     - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
+    # pnpm keeps one store per drive on Windows, chosen from the directory it
+    # runs in. Resolving it from `working-directory` makes the cached store the
+    # one the install below actually fills, instead of the checkout's.
     - name: Get pnpm store directory
       id: store
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
 
@@ -102,12 +111,14 @@ runs:
     - name: Set CPU architecture for pnpm
       if: ${{ inputs.cpu }}
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: node -e 'console.log(`\nsupportedArchitectures:\n  cpu:\n    - ${process.env.CPU_ARCH}`)' >> pnpm-workspace.yaml
       env:
         CPU_ARCH: ${{ inputs.cpu }}
 
     - run: pnpm install --frozen-lockfile --ignore-scripts
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
 
     # Saved here rather than as a post-job step so the store survives a later
     # failure in the calling job.
