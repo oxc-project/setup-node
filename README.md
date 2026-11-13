@@ -11,6 +11,10 @@
   branch saved
 * Skips `actions/setup-node` on Alpine Linux (which only ships glibc
   binaries) and uses the container's musl Node instead.
+* `working-directory` installs, and resolves the pnpm store and its cache, in
+  another directory of the checkout, such as a Dev Drive copy that the build
+  actually runs in. pnpm keeps one store per drive on Windows, so leaving this
+  at the repository root caches a store the build never fills.
 
 # [Sponsored By](https://oxc.rs/sponsor)
 
